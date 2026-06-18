@@ -28,3 +28,5 @@ uniplayos/
             ├── resolver.js
             └── download.js
 ```
+
+we have added embed.js this is the entry point for websites to add UniplayOS to their pages. It's like a bridge between the website and our UniplayOS player.
