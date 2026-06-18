@@ -30,3 +30,4 @@ uniplayos/
 ```
 
 we have added embed.js this is the entry point for websites to add UniplayOS to their pages. It's like a bridge between the website and our UniplayOS player.
+so when u see uses let's say : uniplayOs.com/embed.js it calls player.html
