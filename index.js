@@ -11,6 +11,10 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static('public'));
 
+app.get('/embed.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'embed.js'));
+});
+
 app.get('/proxy', proxyMedia);
 
 app.get('*', (req, res) => {
