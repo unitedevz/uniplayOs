@@ -1,6 +1,4 @@
-import Utils from './utils/utils.js';
-
-export class Resolver {
+class Resolver {
   constructor(options = {}) {
     this.proxyBase = options.proxyBase || '/proxy';
   }
@@ -51,7 +49,7 @@ export class Resolver {
   requiresProxy(url) {
     try {
       const u = new URL(url);
-      return !u.hostname || u.hostname.includes('blob') || u.hostname.includes('localhost') === false;
+      return !u.hostname || (!u.hostname.includes('blob') && u.hostname !== 'localhost');
     } catch {
       return true;
     }
@@ -107,4 +105,6 @@ export class Resolver {
   }
 }
 
-export default Resolver;
+if (typeof window !== 'undefined') {
+  window.Resolver = Resolver;
+}
