@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test — UniplayOS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111;
+      --surface2: #161616;
+      --border: #1f1f1f;
+      --text: #e8e8e8;
+      --muted: #555;
+      --accent: #c8ff00;
+      --red: #ff4d4d;
+      --yellow: #ffc84d;
+      --green: #4dff91;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.82rem;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header h1 { font-size: 0.85rem; letter-spacing: 0.1em; color: var(--accent); }
+    header span { color: var(--muted); }
+
+    #left {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #right {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-title {
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      padding: 0;
+    }
+
+    .panel-title button:hover { color: var(--accent); }
+
+    #url-section {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    #url-row { display: flex; gap: 0.5rem; }
+
+    input[type="url"], input[type="text"] {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.8rem;
+      padding: 0.45rem 0.6rem;
+      outline: none;
+    }
+
+    input:focus { border-color: var(--accent); }
+
+    .btn {
+      background: none;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.45rem 0.9rem;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: var(--accent); color: var(--bg); }
+    .btn.ghost { border-color: var(--border); color: var(--muted); }
+    .btn.ghost:hover { border-color: var(--muted); background: none; color: var(--text); }
+
+    #resolver-out {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .kv { display: flex; gap: 0.5rem; align-items: flex-start; }
+    .kv .k { color: var(--muted); min-width: 90px; flex-shrink: 0; }
+    .kv .v { color: var(--text); word-break: break-all; }
+    .kv .v.ok  { color: var(--green); }
+    .kv .v.warn { color: var(--yellow); }
+    .kv .v.err { color: var(--red); }
+
+    #stage {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      flex-shrink: 0;
+    }
+
+    video { width: 100%; height: 100%; display: block; }
+
+    #video-info {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem 1rem;
+    }
+
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+      line-height: 1.5;
+    }
+
+    .log-ts  { color: var(--muted); flex-shrink: 0; }
+    .log-tag { min-width: 60px; flex-shrink: 0; }
+    .log-msg { word-break: break-all; }
+
+    .log-entry.info  .log-tag { color: var(--accent); }
+    .log-entry.warn  .log-tag { color: var(--yellow); }
+    .log-entry.error .log-tag { color: var(--red); }
+    .log-entry.ok    .log-tag { color: var(--green); }
+
+    #proxy-section {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    #proxy-row { display: flex; gap: 0.5rem; }
+
+    @media (max-width: 768px) {
+      body { grid-template-columns: 1fr; }
+      #left { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>UNIPLAYOS</h1>
+    <span>/</span>
+    <span>test environment</span>
+  </header>
+
+  <div id="left">
+    <div class="panel-title">resolver + player</div>
+
+    <div id="url-section">
+      <div id="url-row">
+        <input id="url-input" type="url" placeholder="Paste a media URL…" spellcheck="false">
+        <button class="btn" id="btn-load">Load</button>
+      </div>
+    </div>
+
+    <div id="resolver-out">
+      <div class="kv"><span class="k">input</span>    <span class="v" id="r-input">—</span></div>
+      <div class="kv"><span class="k">extension</span><span class="v" id="r-ext">—</span></div>
+      <div class="kv"><span class="k">type</span>     <span class="v" id="r-type">—</span></div>
+      <div class="kv"><span class="k">proxied</span>  <span class="v" id="r-proxy">—</span></div>
+      <div class="kv"><span class="k">resolved</span> <span class="v" id="r-resolved">—</span></div>
+    </div>
+
+    <div id="stage">
+      <video id="video"></video>
+    </div>
+
+    <div id="video-info">
+      <div class="kv"><span class="k">state</span>      <span class="v" id="v-state">—</span></div>
+      <div class="kv"><span class="k">duration</span>   <span class="v" id="v-duration">—</span></div>
+      <div class="kv"><span class="k">resolution</span> <span class="v" id="v-res">—</span></div>
+      <div class="kv"><span class="k">time</span>       <span class="v" id="v-time">—</span></div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div class="panel-title">
+      log
+      <button id="btn-clear">clear</button>
+    </div>
+
+    <div id="log"></div>
+
+    <div id="proxy-section">
+      <div class="panel-title" style="padding:0; border:none;">proxy ping</div>
+      <div id="proxy-row">
+        <input id="proxy-input" type="url" placeholder="URL to test through proxy…" spellcheck="false">
+        <button class="btn ghost" id="btn-ping">Ping</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dashjs/4.7.4/dash.all.min.js"></script>
+  <script src="/js/utils/utils.js"></script>
+  <script src="/js/utils/resolver.js"></script>
+  <script src="/js/utils/api.js"></script>
+
+  <script>
+    const video      = document.getElementById('video');
+    const urlInput   = document.getElementById('url-input');
+    const btnLoad    = document.getElementById('btn-load');
+    const btnClear   = document.getElementById('btn-clear');
+    const btnPing    = document.getElementById('btn-ping');
+    const proxyInput = document.getElementById('proxy-input');
+    const logEl      = document.getElementById('log');
+
+    const rInput    = document.getElementById('r-input');
+    const rExt      = document.getElementById('r-ext');
+    const rType     = document.getElementById('r-type');
+    const rProxy    = document.getElementById('r-proxy');
+    const rResolved = document.getElementById('r-resolved');
+
+    const vState    = document.getElementById('v-state');
+    const vDuration = document.getElementById('v-duration');
+    const vRes      = document.getElementById('v-res');
+    const vTime     = document.getElementById('v-time');
+
+    let hlsInstance  = null;
+    let dashInstance = null;
+
+    function ts() {
+      const d = new Date();
+      return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+    }
+
+    function log(msg, level = 'info', tag = level.toUpperCase()) {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${level}`;
+      entry.innerHTML = `<span class="log-ts">${ts()}</span><span class="log-tag">[${tag}]</span><span class="log-msg">${msg}</span>`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function destroyInstances() {
+      if (hlsInstance)  { hlsInstance.destroy();  hlsInstance  = null; }
+      if (dashInstance) { dashInstance.reset();   dashInstance = null; }
+    }
+
+    function loadUrl(rawUrl) {
+      if (!rawUrl) return;
+      destroyInstances();
+
+      const resolver = new Resolver();
+      const result   = resolver.resolve(rawUrl);
+      const ext      = Utils.getFileExtension(rawUrl);
+      const src      = result.proxyRequired ? resolver.getProxyUrl(rawUrl) : rawUrl;
+
+      rInput.textContent    = rawUrl;
+      rExt.textContent      = ext || '—';
+      rType.textContent     = result.type;
+      rType.className       = `v ${result.type === 'unknown' ? 'warn' : 'ok'}`;
+      rProxy.textContent    = result.proxyRequired ? 'yes' : 'no';
+      rProxy.className      = `v ${result.proxyRequired ? 'ok' : 'warn'}`;
+      rResolved.textContent = src;
+
+      log(`loading ${result.type} — ${rawUrl}`);
+
+      if (result.type === 'hls') {
+        if (Hls.isSupported()) {
+          hlsInstance = new Hls({ debug: false });
+          hlsInstance.loadSource(src);
+          hlsInstance.attachMedia(video);
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+            log(`manifest parsed — ${data.levels.length} level(s)`, 'ok', 'HLS');
+            video.play();
+          });
+          hlsInstance.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+            const l = hlsInstance.levels[data.level];
+            log(`level switched — ${l.width}x${l.height} @ ${Math.round(l.bitrate / 1000)}kbps`, 'info', 'HLS');
+          });
+          hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+            log(`${data.type} — ${data.details}`, data.fatal ? 'error' : 'warn', 'HLS');
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = src;
+          video.play();
+          log('native HLS (Safari)', 'ok', 'HLS');
+        } else {
+          log('HLS not supported in this browser', 'error', 'HLS');
+        }
+      } else if (result.type === 'dash') {
+        dashInstance = dashjs.MediaPlayer().create();
+        dashInstance.initialize(video, src, true);
+        dashInstance.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => log('stream initialized', 'ok', 'DASH'));
+        dashInstance.on(dashjs.MediaPlayer.events.ERROR, e => log(e.error?.message || 'error', 'error', 'DASH'));
+        log('DASH player initialized', 'info', 'DASH');
+      } else {
+        video.src = src;
+        video.play();
+        log(`direct src set — ${ext || 'unknown ext'}`, 'info', 'SRC');
+      }
+    }
+
+    video.addEventListener('play',     () => { vState.textContent = 'playing'; vState.className = 'v ok'; });
+    video.addEventListener('pause',    () => { vState.textContent = 'paused';  vState.className = 'v warn'; });
+    video.addEventListener('waiting',  () => { vState.textContent = 'buffering'; vState.className = 'v warn'; log('buffering…', 'warn', 'VIDEO'); });
+    video.addEventListener('stalled',  () => { log('stalled', 'warn', 'VIDEO'); });
+    video.addEventListener('error',    () => {
+      const msg = video.error ? `code ${video.error.code} — ${video.error.message}` : 'unknown error';
+      log(msg, 'error', 'VIDEO');
+      vState.textContent = 'error'; vState.className = 'v err';
+    });
+    video.addEventListener('loadedmetadata', () => {
+      vDuration.textContent = Utils.formatTime(video.duration);
+      vRes.textContent = video.videoWidth ? `${video.videoWidth}x${video.videoHeight}` : '—';
+      log(`metadata loaded — ${video.videoWidth}x${video.videoHeight} — ${Utils.formatTime(video.duration)}`, 'ok', 'VIDEO');
+    });
+    video.addEventListener('timeupdate', () => {
+      vTime.textContent = Utils.formatTime(video.currentTime);
+    });
+
+    btnLoad.addEventListener('click', () => loadUrl(urlInput.value.trim()));
+    urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadUrl(urlInput.value.trim()); });
+
+    btnClear.addEventListener('click', () => { logEl.innerHTML = ''; });
+
+    btnPing.addEventListener('click', async () => {
+      const url = proxyInput.value.trim();
+      if (!url) return;
+      log(`pinging proxy for — ${url}`, 'info', 'PING');
+      const start = Date.now();
+      await Api.get(url, {
+        onError: err => log(`proxy error — ${err.message}`, 'error', 'PING')
+      });
+      const ms = Date.now() - start;
+      log(`proxy responded in ${ms}ms`, 'ok', 'PING');
+    });
+
+    log('test environment ready', 'ok', 'INIT');
+  </script>
+</body>
+</html>
