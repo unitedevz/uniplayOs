@@ -17,6 +17,13 @@ app.get('/embed.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'embed.js'));
 });
 
+app.options('/proxy', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Range, Content-Type');
+  res.sendStatus(204);
+});
+
 app.get('/proxy', async (req, res) => {
   try {
     await proxyMedia(req, res);
