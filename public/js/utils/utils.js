@@ -26,9 +26,12 @@ class Utils {
   
   static getFileExtension(url) {
     try {
-      const cleanUrl = url.split('?')[0].split('#')[0];
-      const parts = cleanUrl.split('.');
-      return parts.length > 1 ? parts.pop().toLowerCase() : '';
+      const pathname = new URL(url).pathname;
+      const clean = pathname.split('?')[0].split('#')[0];
+      const parts = clean.split('.');
+      if (parts.length < 2) return '';
+      const ext = parts.pop().toLowerCase();
+      return ext.includes('/') ? '' : ext;
     } catch {
       return '';
     }
