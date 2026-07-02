@@ -41,6 +41,13 @@
       background: #000;
     }
 
+    #embed-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: none;
+    }
+
     video {
       width: 100%;
       height: 100%;
@@ -183,6 +190,7 @@
   <div id="wrapper">
     <div id="stage" class="paused">
       <video id="video"></video>
+      <iframe id="embed-frame" allowfullscreen allow="autoplay"></iframe>
       <div id="overlay">
         <button id="play-big" aria-label="Play"><i class="fa-solid fa-play"></i></button>
       </div>
@@ -232,14 +240,36 @@
     const urlLoad   = document.getElementById('url-load');
     const status    = document.getElementById('status');
 
+    function setStatus(msg) { status.textContent = msg; }
+
     let hlsInstance  = null;
     let dashInstance = null;
 
-    function setStatus(msg) { status.textContent = msg; }
+    const embedFrame = document.getElementById('embed-frame');
+
+    function getEmbedUrl(url) {
+      if (Utils.isYouTube(url)) {
+        const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+        return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1` : url;
+      }
+      if (Utils.isVimeo(url)) {
+        const match = url.match(/vimeo\.com\/(\d+)/);
+        return match ? `https://player.vimeo.com/video/${match[1]}?autoplay=1` : url;
+      }
+      return url;
+    }
+
+    function showVideo()  { video.style.display = 'block'; embedFrame.style.display = 'none'; }
+    function showEmbed()  { video.style.display = 'none';  embedFrame.style.display = 'block'; }
 
     function destroyInstances() {
       if (hlsInstance)  { hlsInstance.destroy();  hlsInstance  = null; }
       if (dashInstance) { dashInstance.reset();   dashInstance = null; }
+    }
+
+    function safePlay() {
+      const p = video.play();
+      if (p !== undefined) p.catch(() => {});
     }
 
     function loadUrl(rawUrl) {
@@ -252,16 +282,25 @@
 
       setStatus('Loading…');
 
+      if (result.strategy === 'iframe') {
+        showEmbed();
+        embedFrame.src = getEmbedUrl(rawUrl);
+        setStatus('');
+        return;
+      }
+
+      showVideo();
+
       if (result.type === 'hls') {
         if (Hls.isSupported()) {
           hlsInstance = new Hls();
           hlsInstance.loadSource(src);
           hlsInstance.attachMedia(video);
-          hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => { video.play(); setStatus(''); });
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => { safePlay(); setStatus(''); });
           hlsInstance.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) setStatus('Stream error.'); });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           video.src = src;
-          video.play();
+          safePlay();
           setStatus('');
         }
       } else if (result.type === 'dash') {
@@ -270,13 +309,13 @@
         setStatus('');
       } else {
         video.src = src;
-        video.play();
+        safePlay();
         setStatus('');
       }
     }
 
     function togglePlay() {
-      if (video.paused) { video.play(); } else { video.pause(); }
+      if (video.paused) { safePlay(); } else { video.pause(); }
     }
 
     function setIcon(btn, icon) {
