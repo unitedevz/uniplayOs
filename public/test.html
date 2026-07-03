@@ -253,6 +253,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dashjs/4.7.4/dash.all.min.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
   <script src="/js/utils/utils.js"></script>
   <script src="/js/utils/resolver.js"></script>
   <script src="/js/utils/api.js"></script>
@@ -279,16 +280,9 @@
 
     const embedFrame = document.getElementById('embed-frame');
 
-    function getEmbedUrl(url) {
-      if (Utils.isYouTube(url)) {
-        const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/);
-        return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1` : url;
-      }
-      if (Utils.isVimeo(url)) {
-        const match = url.match(/vimeo\.com\/(\d+)/);
-        return match ? `https://player.vimeo.com/video/${match[1]}?autoplay=1` : url;
-      }
-      return url;
+    function extractYtId(url) {
+      const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : null;
     }
 
     function showVideo() { video.style.display = 'block'; embedFrame.style.display = 'none'; }
@@ -296,6 +290,8 @@
 
     let hlsInstance  = null;
     let dashInstance = null;
+    let ytPlayer     = null;
+    let ytInterval   = null;
 
     function ts() {
       const d = new Date();
@@ -313,6 +309,41 @@
     function destroyInstances() {
       if (hlsInstance)  { hlsInstance.destroy();  hlsInstance  = null; }
       if (dashInstance) { dashInstance.reset();   dashInstance = null; }
+      if (ytInterval)   { clearInterval(ytInterval); ytInterval = null; }
+      if (ytPlayer)     { ytPlayer.destroy();     ytPlayer = null; }
+    }
+
+    function loadYouTube(videoId) {
+      showEmbed();
+      embedFrame.id = 'yt-frame';
+
+      if (ytPlayer) { ytPlayer.loadVideoById(videoId); return; }
+
+      ytPlayer = new YT.Player('yt-frame', {
+        videoId,
+        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: () => {
+            log('YT player ready', 'ok', 'YT');
+            ytInterval = setInterval(() => {
+              if (!ytPlayer) return;
+              const cur = ytPlayer.getCurrentTime() || 0;
+              const dur = ytPlayer.getDuration()    || 0;
+              vTime.textContent     = Utils.formatTime(cur);
+              vDuration.textContent = Utils.formatTime(dur);
+            }, 500);
+          },
+          onStateChange: (e) => {
+            const S = YT.PlayerState;
+            const labels = { [S.PLAYING]: 'playing', [S.PAUSED]: 'paused', [S.BUFFERING]: 'buffering', [S.ENDED]: 'ended' };
+            const label = labels[e.data] || 'unknown';
+            vState.textContent = label;
+            vState.className   = e.data === S.PLAYING ? 'v ok' : 'v warn';
+            log(`state → ${label}`, e.data === S.PLAYING ? 'ok' : 'info', 'YT');
+          },
+          onError: (e) => log(`error code ${e.data}`, 'error', 'YT')
+        }
+      });
     }
 
     function loadUrl(rawUrl) {
@@ -335,9 +366,20 @@
       log(`loading ${result.type} — ${rawUrl}`);
 
       if (result.strategy === 'iframe') {
+        if (Utils.isYouTube(rawUrl)) {
+          const id = extractYtId(rawUrl);
+          if (id) { loadYouTube(id); log('YT player loading', 'info', 'YT'); return; }
+        }
+        if (Utils.isVimeo(rawUrl)) {
+          showEmbed();
+          const match = rawUrl.match(/vimeo\.com\/(\d+)/);
+          embedFrame.src = match ? `https://player.vimeo.com/video/${match[1]}?autoplay=1` : rawUrl;
+          log('embed loaded', 'ok', 'IFRAME');
+          return;
+        }
         showEmbed();
-        embedFrame.src = getEmbedUrl(rawUrl);
-        log(`embed loaded`, 'ok', 'IFRAME');
+        embedFrame.src = rawUrl;
+        log('embed loaded', 'ok', 'IFRAME');
         return;
       }
 
