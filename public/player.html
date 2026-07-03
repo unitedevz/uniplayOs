@@ -141,7 +141,32 @@
 
     #vol {
       width: 70px;
-      accent-color: var(--accent);
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #vol::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    #vol::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
     }
 
     #url-bar {
@@ -221,6 +246,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dashjs/4.7.4/dash.all.min.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
   <script src="/js/utils/utils.js"></script>
   <script src="/js/utils/resolver.js"></script>
   <script src="/js/utils/api.js"></script>
@@ -239,37 +265,73 @@
     const urlInput  = document.getElementById('url-input');
     const urlLoad   = document.getElementById('url-load');
     const status    = document.getElementById('status');
+    const embedFrame = document.getElementById('embed-frame');
 
     function setStatus(msg) { status.textContent = msg; }
 
     let hlsInstance  = null;
     let dashInstance = null;
+    let ytPlayer     = null;
+    let ytInterval   = null;
+    let isYT         = false;
 
-    const embedFrame = document.getElementById('embed-frame');
-
-    function getEmbedUrl(url) {
-      if (Utils.isYouTube(url)) {
-        const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/);
-        return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1` : url;
-      }
-      if (Utils.isVimeo(url)) {
-        const match = url.match(/vimeo\.com\/(\d+)/);
-        return match ? `https://player.vimeo.com/video/${match[1]}?autoplay=1` : url;
-      }
-      return url;
+    function setIcon(btn, icon) {
+      btn.querySelector('i').className = `fa-solid fa-${icon}`;
     }
 
-    function showVideo()  { video.style.display = 'block'; embedFrame.style.display = 'none'; }
-    function showEmbed()  { video.style.display = 'none';  embedFrame.style.display = 'block'; }
+    function showVideo() { video.style.display = 'block'; embedFrame.style.display = 'none'; }
+    function showEmbed() { video.style.display = 'none';  embedFrame.style.display = 'block'; }
 
     function destroyInstances() {
       if (hlsInstance)  { hlsInstance.destroy();  hlsInstance  = null; }
       if (dashInstance) { dashInstance.reset();   dashInstance = null; }
+      if (ytInterval)   { clearInterval(ytInterval); ytInterval = null; }
+      if (ytPlayer)     { ytPlayer.destroy();     ytPlayer = null; }
+      isYT = false;
     }
 
     function safePlay() {
       const p = video.play();
       if (p !== undefined) p.catch(() => {});
+    }
+
+    function extractYtId(url) {
+      const match = url.match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : null;
+    }
+
+    function loadYouTube(videoId) {
+      isYT = true;
+      showEmbed();
+      embedFrame.id = 'yt-frame';
+
+      if (ytPlayer) {
+        ytPlayer.loadVideoById(videoId);
+        return;
+      }
+
+      ytPlayer = new YT.Player('yt-frame', {
+        videoId,
+        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: () => {
+            setStatus('');
+            ytInterval = setInterval(() => {
+              if (!ytPlayer) return;
+              const cur  = ytPlayer.getCurrentTime() || 0;
+              const dur  = ytPlayer.getDuration()    || 0;
+              const pct  = dur ? (cur / dur) * 100 : 0;
+              progress.style.width = pct + '%';
+              timeEl.textContent   = `${Utils.formatTime(cur)} / ${Utils.formatTime(dur)}`;
+            }, 500);
+          },
+          onStateChange: (e) => {
+            const S = YT.PlayerState;
+            if (e.data === S.PLAYING) { stage.classList.remove('paused'); setIcon(btnPlay, 'pause'); setIcon(playBig, 'pause'); }
+            if (e.data === S.PAUSED || e.data === S.ENDED) { stage.classList.add('paused'); setIcon(btnPlay, 'play'); setIcon(playBig, 'play'); }
+          }
+        }
+      });
     }
 
     function loadUrl(rawUrl) {
@@ -283,8 +345,19 @@
       setStatus('Loading…');
 
       if (result.strategy === 'iframe') {
+        if (Utils.isYouTube(rawUrl)) {
+          const id = extractYtId(rawUrl);
+          if (id) { loadYouTube(id); return; }
+        }
+        if (Utils.isVimeo(rawUrl)) {
+          showEmbed();
+          const match = rawUrl.match(/vimeo\.com\/(\d+)/);
+          embedFrame.src = match ? `https://player.vimeo.com/video/${match[1]}?autoplay=1` : rawUrl;
+          setStatus('');
+          return;
+        }
         showEmbed();
-        embedFrame.src = getEmbedUrl(rawUrl);
+        embedFrame.src = rawUrl;
         setStatus('');
         return;
       }
@@ -315,11 +388,13 @@
     }
 
     function togglePlay() {
+      if (isYT && ytPlayer) {
+        const state = ytPlayer.getPlayerState();
+        if (state === YT.PlayerState.PLAYING) { ytPlayer.pauseVideo(); }
+        else { ytPlayer.playVideo(); }
+        return;
+      }
       if (video.paused) { safePlay(); } else { video.pause(); }
-    }
-
-    function setIcon(btn, icon) {
-      btn.querySelector('i').className = `fa-solid fa-${icon}`;
     }
 
     video.addEventListener('play',  () => { stage.classList.remove('paused'); setIcon(btnPlay, 'pause'); setIcon(playBig, 'pause'); });
@@ -336,15 +411,38 @@
 
     progWrap.addEventListener('click', e => {
       const rect = progWrap.getBoundingClientRect();
-      if (video.duration) video.currentTime = ((e.clientX - rect.left) / rect.width) * video.duration;
+      const pct  = (e.clientX - rect.left) / rect.width;
+      if (isYT && ytPlayer) {
+        const dur = ytPlayer.getDuration();
+        if (dur) ytPlayer.seekTo(pct * dur, true);
+        return;
+      }
+      if (video.duration) video.currentTime = pct * video.duration;
     });
 
     btnPlay.addEventListener('click', togglePlay);
     playBig.addEventListener('click', togglePlay);
 
-    btnMute.addEventListener('click', () => { video.muted = !video.muted; setIcon(btnMute, video.muted ? 'volume-xmark' : 'volume-high'); });
-    volSlider.addEventListener('input', () => { video.volume = volSlider.value; });
-    btnFs.addEventListener('click', () => { if (!document.fullscreenElement) stage.requestFullscreen(); else document.exitFullscreen(); });
+    btnMute.addEventListener('click', () => {
+      if (isYT && ytPlayer) {
+        if (ytPlayer.isMuted()) { ytPlayer.unMute(); setIcon(btnMute, 'volume-high'); }
+        else { ytPlayer.mute(); setIcon(btnMute, 'volume-xmark'); }
+        return;
+      }
+      video.muted = !video.muted;
+      setIcon(btnMute, video.muted ? 'volume-xmark' : 'volume-high');
+    });
+
+    volSlider.addEventListener('input', () => {
+      const val = parseFloat(volSlider.value);
+      if (isYT && ytPlayer) { ytPlayer.setVolume(val * 100); return; }
+      video.volume = val;
+    });
+
+    btnFs.addEventListener('click', () => {
+      if (!document.fullscreenElement) stage.requestFullscreen();
+      else document.exitFullscreen();
+    });
 
     urlLoad.addEventListener('click', () => loadUrl(urlInput.value.trim()));
     urlInput.addEventListener('keydown', e => { if (e.key === 'Enter') loadUrl(urlInput.value.trim()); });
@@ -353,5 +451,3 @@
     const autoUrl = params.get('url');
     if (autoUrl) { urlInput.value = autoUrl; loadUrl(autoUrl); }
   </script>
-</body>
-</html>
