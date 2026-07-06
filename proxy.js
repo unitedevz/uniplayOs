@@ -2,6 +2,7 @@ import { pipeline } from 'stream';
 import { Readable } from 'stream';
 
 const TIMEOUT_MS = 15000;
+const CF_WORKER_URL = process.env.CF_WORKER_URL || null;
 
 function applyHeaders(res, response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -41,7 +42,11 @@ export const proxyMedia = async (req, res) => {
 
     if (range) headers.Range = range;
 
-    const response = await fetch(url, { headers, redirect: 'follow', signal: controller.signal });
+    const fetchUrl = CF_WORKER_URL
+      ? `${CF_WORKER_URL}?url=${encodeURIComponent(url)}`
+      : url;
+
+    const response = await fetch(fetchUrl, { headers, redirect: 'follow', signal: controller.signal });
 
     clearTimeout(timeout);
 
