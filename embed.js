@@ -8,6 +8,7 @@ class UniplayOSEmbed {
     this.width = options.width || '100%';
     this.height = options.height || '500px';
     this.autoplay = options.autoplay || false;
+    this.debug = options.debug || false;
     this.onReady = options.onReady || null;
     this.onPlay = options.onPlay || null;
     this.onPause = options.onPause || null;
@@ -70,6 +71,10 @@ class UniplayOSEmbed {
     
     if (this.autoplay) {
       params.set('autoplay', 'true');
+    }
+    
+    if (this.debug) {
+      params.set('debug', 'true');
     }
     
     const baseUrl = this.baseUrl || window.location.origin;
