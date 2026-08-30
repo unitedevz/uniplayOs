@@ -332,10 +332,11 @@ export const proxyMedia = async (req, res) => {
 
     if (type) {
       const manifest = await response.text();
+      const manifestBase = response.url || url;
       const proxyBase = `${req.protocol}://${req.get('host')}/proxy`;
       const rewritten = type === 'hls'
-        ? rewriteHlsManifest(manifest, url, proxyBase)
-        : rewriteDashManifest(manifest, url, proxyBase);
+        ? rewriteHlsManifest(manifest, manifestBase, proxyBase)
+        : rewriteDashManifest(manifest, manifestBase, proxyBase);
       const outContentType = type === 'hls'
         ? 'application/vnd.apple.mpegurl'
         : 'application/dash+xml';
