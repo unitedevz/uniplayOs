@@ -1109,35 +1109,81 @@
           sendEmbedEvent('error', { message: msg || 'Media error' });
         };
 
-        if (result.type === 'hls') {
+        let fallbackIndex = 0;
+
+        function loadNative(srcUrl) {
+          video.src = srcUrl;
+          video.addEventListener('loadedmetadata', onMediaReady, { once: true });
+          video.addEventListener('error', () => handleFailure('Failed to load media'), { once: true });
+          if (autoplay) safePlay();
+        }
+
+        function loadHls(srcUrl) {
           if (Hls.isSupported()) {
             hlsInstance = new Hls();
-            hlsInstance.loadSource(src);
+            hlsInstance.loadSource(srcUrl);
             hlsInstance.attachMedia(video);
             hlsInstance.on(Hls.Events.MANIFEST_PARSED, onMediaReady);
             hlsInstance.on(Hls.Events.ERROR, (_, data) => {
-              if (data.fatal) {
-                onError('HLS fatal error');
-              }
+              if (data.fatal) handleFailure('HLS fatal error');
             });
           } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = src;
-            video.addEventListener('loadedmetadata', onMediaReady, { once: true });
-            video.addEventListener('error', () => onError('Failed to load HLS stream'), { once: true });
-            if (autoplay) safePlay();
+            loadNative(srcUrl);
           } else {
-            onError('HLS not supported');
+            handleFailure('HLS not supported');
           }
-        } else if (result.type === 'dash') {
+        }
+
+        function loadDash(srcUrl) {
           dashInstance = dashjs.MediaPlayer().create();
-          dashInstance.initialize(video, src, true);
+          dashInstance.initialize(video, srcUrl, true);
           dashInstance.on('streamInitialized', onMediaReady);
-          dashInstance.on('streamError', () => onError('DASH stream error'));
+          dashInstance.on('streamError', () => handleFailure('DASH stream error'));
+        }
+
+        function handleFailure(msg) {
+          destroyInstances();
+          fallbackIndex += 1;
+          const nextStep = result.fallbackChain[fallbackIndex];
+
+          if (!nextStep) {
+            onError(msg);
+            return;
+          }
+
+          if (isDebugMode) setStatus(`${msg} — trying ${nextStep}…`);
+
+          if (nextStep === 'proxy') {
+            const proxiedSrc = resolver.getProxyUrl(rawUrl);
+            if (proxiedSrc === src) { handleFailure(msg); return; }
+            if (result.type === 'hls') loadHls(proxiedSrc);
+            else if (result.type === 'dash') loadDash(proxiedSrc);
+            else loadNative(proxiedSrc);
+          } else if (nextStep === 'mp4-fallback') {
+            loadNative(resolver.getProxyUrl(rawUrl));
+          } else if (nextStep === 'iframe') {
+            showEmbed();
+            embedFrame.innerHTML = '';
+            const frame = document.createElement('iframe');
+            frame.allowFullscreen = true;
+            frame.setAttribute('allow', 'autoplay');
+            frame.src = rawUrl;
+            embedFrame.appendChild(frame);
+            showLoader(false);
+            if (loadTimeout) clearTimeout(loadTimeout);
+            if (isDebugMode) setStatus('');
+            sendReadyIfNeeded();
+          } else {
+            onError(msg);
+          }
+        }
+
+        if (result.type === 'hls') {
+          loadHls(src);
+        } else if (result.type === 'dash') {
+          loadDash(src);
         } else {
-          video.src = src;
-          video.addEventListener('loadedmetadata', onMediaReady, { once: true });
-          video.addEventListener('error', () => onError('Failed to load media'), { once: true });
-          if (autoplay) safePlay();
+          loadNative(src);
         }
       } catch (err) {
         showLoader(false);
