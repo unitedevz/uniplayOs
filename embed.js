@@ -78,11 +78,15 @@ class UniplayOSEmbed {
     }
     
     const baseUrl = this.baseUrl || window.location.origin;
+    this.playerOrigin = new URL(baseUrl).origin;
     return `${baseUrl}/player.html?${params.toString()}`;
   }
   
   setupMessageListener() {
     window.addEventListener('message', (event) => {
+      if (event.origin !== this.playerOrigin) return;
+      if (event.source !== this.iframe?.contentWindow) return;
+
       const data = event.data;
       if (!data || data.type !== 'uniplayos') return;
       
@@ -118,7 +122,7 @@ class UniplayOSEmbed {
         type: 'uniplayos',
         action: action,
         ...data
-      }, '*');
+      }, this.playerOrigin || '*');
     }
   }
   
