@@ -57,7 +57,7 @@ class Downloader {
 
     const blobUrl = URL.createObjectURL(blob);
     this._trigger(blobUrl, filename);
-    URL.revokeObjectURL(blobUrl);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
 
     if (this.onComplete) this.onComplete({ url, filename, size: received });
   }
@@ -89,4 +89,3 @@ class Downloader {
 if (typeof window !== 'undefined') {
   window.Downloader = Downloader;
 }
-
