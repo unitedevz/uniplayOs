@@ -168,7 +168,8 @@ Deploy steps and details live in the [UniplayOsproxy](https://github.com/unitede
   <div id="player" style="width:800px;height:450px;"></div>
 
   <script type="module">
-    import UniplayOS from "https://www.uniplayos.web.id/embed.js";
+    import "https://www.uniplayos.web.id/embed.js";
+    const UniplayOS = window.UniplayOS;
 
     UniplayOS.prototype.baseUrl = "https://www.uniplayos.web.id";
 
