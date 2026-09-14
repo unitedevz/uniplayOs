@@ -175,5 +175,3 @@ class UniplayOSEmbed {
 if (typeof window !== 'undefined') {
   window.UniplayOS = UniplayOSEmbed;
 }
-
-export default UniplayOSEmbed;
