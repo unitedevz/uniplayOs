@@ -19,6 +19,10 @@ app.get('/embed.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'embed.js'));
 });
 
+app.get('/embed.esm.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'embed.esm.js'));
+});
+
 app.options('/proxy', (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
