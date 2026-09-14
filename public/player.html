@@ -883,8 +883,28 @@
       embedFrame.style.display = 'block';
     }
 
+    const YT_THUMB_FALLBACKS = ['maxresdefault', 'sddefault', 'hqdefault', 'mqdefault'];
+
     function setThumbnail(url) {
       if (!url) { thumbnail.classList.remove('visible'); thumbnail.src = ''; return; }
+
+      const ytMatch = url.match(/img\.youtube\.com\/vi\/([^/]+)\/(\w+)\.jpg/);
+      thumbnail.onerror = null;
+
+      if (ytMatch) {
+        const [, videoId] = ytMatch;
+        let step = 0;
+        thumbnail.onerror = () => {
+          step += 1;
+          if (step < YT_THUMB_FALLBACKS.length) {
+            thumbnail.src = `https://img.youtube.com/vi/${videoId}/${YT_THUMB_FALLBACKS[step]}.jpg`;
+          } else {
+            thumbnail.onerror = null;
+            thumbnail.classList.remove('visible');
+          }
+        };
+      }
+
       thumbnail.src = url;
       thumbnail.classList.add('visible');
     }
