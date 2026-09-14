@@ -106,7 +106,7 @@ class Utils {
   }
   
   static isDASH(url) {
-    return url.includes('.mpd') || url.includes('manifest');
+    return url.includes('.mpd') || /\/manifest\(format=mpd/i.test(url);
   }
   
   static generateId() {
