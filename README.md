@@ -40,6 +40,7 @@ Video, audio, HLS, DASH, and embeds — through one resolver and proxy layer.
 uniplayos/
 ├── index.js              # Express server (exports the app for Vercel)
 ├── proxy.js              # SSRF-guarded proxy, manifest rewriting, cache
+├── rate-limit.js         # shared per-IP rate limiter (proxy + site)
 ├── embed.js              # drop-in embed script
 ├── embed.esm.js          # ES module wrapper around embed.js
 ├── package.json
@@ -95,6 +96,8 @@ All optional. Copy `.env.example` to `.env` and adjust as needed:
 | `CF_WORKER_URL`              | unset   | Route proxy requests through a Cloudflare Worker first (for IP-range blocks)                               |
 | `PROXY_RATE_LIMIT_MAX`       | `300`   | Max proxy requests per IP per window (HLS/DASH playback issues many requests)                              |
 | `PROXY_RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window, in milliseconds                                                                         |
+| `SITE_RATE_LIMIT_MAX`        | `600`   | Max requests per IP per window for everything except `/proxy` (static files, pages, embed scripts)         |
+| `SITE_RATE_LIMIT_WINDOW_MS`  | `60000` | Site rate limit window, in milliseconds                                                                    |
 | `PROXY_ALLOWED_HOSTS`        | unset   | Comma-separated host allowlist (e.g. `.example.com,cdn.example.org`). Leave empty to allow any public host |
 
 The SSRF guard (blocking private IPs, localhost, and cloud metadata endpoints) is always on and isn't configurable.
@@ -264,7 +267,6 @@ PRs welcome. Fork the repo, branch off `main`, and open a pull request describin
 
 - **Found a bug or have an idea?** [Open an issue](https://github.com/unitedevz/uniplayOs/issues/new/choose); the forms ask for the details that make it quick to fix.
 - **Found a security problem?** Please don't file a public issue. Follow [SECURITY.md](./SECURITY.md) and report it privately.
-
 
 ## License
 

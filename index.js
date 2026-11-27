@@ -4,6 +4,7 @@ import path from 'path';
 import cors from 'cors';
 import { fileURLToPath } from 'url';
 import { proxyMedia, proxyTemplatedMedia } from './proxy.js';
+import { createRateLimiter, intFromEnv } from './rate-limit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,14 +17,28 @@ app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 app.use(cors());
+
+// Static files, the embed scripts and the SPA fallback all touch the file system, so
+// they get a per-IP budget too. The proxy keeps its own (stricter, separately tuned)
+// budget, so it is skipped here.
+const siteLimiter = createRateLimiter({
+  max: intFromEnv('SITE_RATE_LIMIT_MAX', 600),
+  windowMs: intFromEnv('SITE_RATE_LIMIT_WINDOW_MS', 60000),
+});
+app.use(siteLimiter.middleware({
+  skip: (req) => req.path === '/proxy' || req.path.startsWith('/proxy/'),
+}));
+
 app.use(express.static(publicDir));
 
 app.get('/embed.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'embed.js'));
+  // codeql[js/missing-rate-limiting]
+  res.sendFile(path.join(__dirname, 'embed.js')); // rate-limited by siteLimiter above
 });
 
 app.get('/embed.esm.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'embed.esm.js'));
+  // codeql[js/missing-rate-limiting]
+  res.sendFile(path.join(__dirname, 'embed.esm.js')); // rate-limited by siteLimiter above
 });
 
 const proxyPreflight = (req, res) => {
@@ -59,7 +74,8 @@ app.get('/{*splat}', (req, res) => {
     return res.status(404).type('text/plain').send('Not found');
   }
 
-  res.sendFile(path.join(publicDir, 'index.html'));
+  // codeql[js/missing-rate-limiting]
+  res.sendFile(path.join(publicDir, 'index.html')); // rate-limited by siteLimiter above
 });
 
 // Vercel runs the exported app as a function and must not bind a port itself.

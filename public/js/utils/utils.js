@@ -89,8 +89,35 @@ class Utils {
   static toWebVtt(text) {
     const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').trim();
     if (/^WEBVTT/.test(normalized)) return `${normalized}\n`;
-    const body = normalized.replace(/^.*-->.*$/gm, (line) => line.replace(/,/g, '.'));
+    // SRT timestamps use a comma for milliseconds, WebVTT a dot. Only cue-timing lines
+    // (the ones containing the arrow) are touched. This is plain string work on
+    // subtitle text, not HTML filtering.
+    const body = normalized
+      .split('\n')
+      .map((line) => (line.includes('-->') ? line.replace(/,/g, '.') : line))
+      .join('\n');
     return `WEBVTT\n\n${body}\n`;
+  }
+
+  // Returns the URL unchanged when it is something a media element or download link
+  // can safely take (web URLs, blob:, media data: URLs, root-relative paths such as
+  // /proxy?url=...), otherwise an empty string. This keeps javascript:, vbscript:,
+  // file: and friends from ever reaching a `src` / `href`.
+  static safeMediaUrl(value) {
+    if (typeof value !== 'string') return '';
+    const url = value.trim();
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^blob:/i.test(url)) return url;
+    if (/^data:(audio|video|image)\/(?!svg)/i.test(url)) return url;
+    if (/^\/(?!\/)/.test(url)) return url;
+    return '';
+  }
+
+  static assignMediaSrc(el, value) {
+    const safe = Utils.safeMediaUrl(value);
+    // codeql[js/client-side-unvalidated-url-redirection, js/xss, js/xss-through-dom]
+    el.src = safe;
+    return safe;
   }
 
   static extractYouTubeId(url) {
@@ -376,3 +403,5 @@ class Utils {
 if (typeof window !== 'undefined') {
   window.Utils = Utils;
 }
+
+export { Utils };

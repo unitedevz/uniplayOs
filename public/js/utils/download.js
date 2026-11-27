@@ -202,8 +202,12 @@ class Downloader {
   }
 
   _trigger(url, filename) {
+    const safeUrl = Utils.safeMediaUrl(url);
+    if (!safeUrl) throw new Error('Unsupported download URL');
+
     const a = document.createElement('a');
-    a.href = url;
+    // codeql[js/client-side-unvalidated-url-redirection, js/xss, js/xss-through-dom]
+    a.href = safeUrl;
     a.download = filename;
     a.style.display = 'none';
     document.body.appendChild(a);
